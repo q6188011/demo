@@ -272,7 +272,7 @@ stop() {
 
 menu() {
     clear
-    bash -c "$(curl -s -L https://raw.githubusercontent.com/yirenchengfeng1/linux/main/reality.sh)"
+    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/socks5.sh)"
 }
 
 Xray() {
