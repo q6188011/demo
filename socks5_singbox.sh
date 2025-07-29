@@ -699,7 +699,7 @@ stop_singbox() {
 
 menu() {
     clear
-    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/reality.sh)"
+    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/socks5.sh)"
 }
 
 Singbox() {
