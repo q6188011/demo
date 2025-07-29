@@ -1,6 +1,5 @@
 #!/bin/bash
-# REALITY一键安装脚本，修改为SOCKS5代理配置
-# Author: YouTube频道<https://www.youtube.com/@aifenxiangdexiaoqie>
+# 一键安装SOCKS5代理配置
 
 RED="\033[31m"      # Error message
 GREEN="\033[32m"    # Success message
@@ -211,7 +210,7 @@ EOF
 	for ((i = 0; i < ${#IP_ADDRESSES[@]}; i++)); do
 		/usr/local/bin/xray uuid > /usr/local/etc/xray/uuid
 		USER_UUID[$i]=`cat /usr/local/etc/xray/uuid`
-		USER_NAME[$i]="SOCKS5(by小企鹅)_$i"	
+		USER_NAME[$i]="SOCKS5_$i"	
 		/usr/local/bin/xray x25519 > /usr/local/etc/xray/key
 		PRIVATE_KEY[$i]=$(cat /usr/local/etc/xray/key | head -n 1 | awk '{print $3}')
 		PUBLIC_KEY[$i]=$(cat /usr/local/etc/xray/key | sed -n '2p' | awk '{print $3}')
