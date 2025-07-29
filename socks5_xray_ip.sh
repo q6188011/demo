@@ -206,26 +206,30 @@ EOF
     generate_link
 }
 
-# 输出 SOCKS5 链接
-generate_socks5_link() {
-    > /root/socks5_links.txt
-    colorEcho $BLUE "${BLUE}SOCKS5 代理链接${PLAIN}："
+generate_link() {
+    > /root/link.txt
+    colorEcho $BLUE "${BLUE}SOCKS5代理信息${PLAIN}："
     
-    # 循环遍历 IP 和端口
     for ((i = 0; i < ${#IP_ADDRESSES[@]}; i++)); do
-        # SOCKS5 链接格式: socks5://username:password@hostname:port
         if [[ "${IP_ADDRESSES[$i]}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            # IPv4 格式
-            LINK[$i]="socks5://${USER_NAME[$i]}:${USER_UUID[$i]}@${IP_ADDRESSES[$i]}:${PORT[$i]}#SOCKS5_${USER_NAME[$i]}"
+            LINK[$i]="socks5://${USERNAME}:${PASSWORD}@${IP_ADDRESSES[$i]}:${START_PORT}"
         elif [[ "${IP_ADDRESSES[$i]}" =~ ^([0-9a-fA-F:]+)$ ]]; then 
-            # IPv6 格式
-            LINK[$i]="socks5://${USER_NAME[$i]}:${USER_UUID[$i]}@[${IP_ADDRESSES[$i]}]:${PORT[$i]}#SOCKS5_${USER_NAME[$i]}"
+            LINK[$i]="socks5://${USERNAME}:${PASSWORD}@[${IP_ADDRESSES[$i]}]:${START_PORT}"
         else
             colorEcho $RED "没有获取到有效ip！"
         fi
         
-        colorEcho $YELLOW ${LINK[$i]}
-        echo ${LINK[$i]} >> /root/socks5_links.txt
+        colorEcho $YELLOW "服务器: ${IP_ADDRESSES[$i]}"
+        colorEcho $YELLOW "端口: ${START_PORT}"
+        colorEcho $YELLOW "用户名: ${USERNAME}"
+        colorEcho $YELLOW "密码: ${PASSWORD}"
+        colorEcho $YELLOW "连接URL: ${LINK[$i]}"
+        echo "服务器: ${IP_ADDRESSES[$i]}" >> /root/link.txt
+        echo "端口: ${START_PORT}" >> /root/link.txt
+        echo "用户名: ${USERNAME}" >> /root/link.txt
+        echo "密码: ${PASSWORD}" >> /root/link.txt
+        echo "连接URL: ${LINK[$i]}" >> /root/link.txt
+        echo "" >> /root/link.txt
     done
 }	
 
@@ -268,7 +272,7 @@ stop() {
 
 menu() {
     clear
-    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/socks5.sh)"
+    bash -c "$(curl -s -L https://raw.githubusercontent.com/yirenchengfeng1/linux/main/reality.sh)"
 }
 
 Xray() {
