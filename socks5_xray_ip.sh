@@ -1,5 +1,5 @@
 #!/bin/bash
-# 一键安装SOCKS5代理配置
+# SOCKS5一键安装脚本
 # Author: YouTube频道<https://www.youtube.com/@aifenxiangdexiaoqie>
 
 RED="\033[31m"      # Error message
@@ -13,7 +13,7 @@ CONFIG_FILE="/usr/local/etc/${NAME}/config.json"
 SERVICE_FILE="/etc/systemd/system/${NAME}.service"
 DEFAULT_START_PORT=10000                      
 IP_ADDRESSES=($(hostname -I))
-declare -a USER_UUID PORT USER_NAME PRIVATE_KEY PUBLIC_KEY USER_DEST USER_SERVERNAME USER_SID LINK SOCKS_LINK
+declare -a USER_UUID PORT USER_NAME PRIVATE_KEY PUBLIC_KEY USER_DEST USER_SERVERNAME USER_SID LINK
 	
 colorEcho() {
     echo -e "${1}${@:2}${PLAIN}"
@@ -113,39 +113,6 @@ preinstall() {
     fi
 }
 
-random_website() {
-    domains=(
-        "one-piece.com"
-        "www.lovelive-anime.jp"
-        "www.swift.com"
-        "academy.nvidia.com"
-        "www.cisco.com"
-        "www.samsung.com"
-        "www.amd.com"
-        "www.apple.com"
-        "music.apple.com"
-        "www.amazon.com"		
-        "www.fandom.com"
-        "tidal.com"
-        "zoro.to"
-        "www.pixiv.co.jp"
-        "mxj.myanimelist.net"
-        "mora.jp"
-        "www.j-wave.co.jp"
-        "www.dmm.com"
-        "booth.pm"
-        "www.ivi.tv"
-        "www.leercapitulo.com"
-        "www.sky.com"
-        "itunes.apple.com"
-        "download-installer.cdn.mozilla.net"	
-    )
-
-    total_domains=${#domains[@]}
-    random_index=$((RANDOM % total_domains))
-    echo "${domains[random_index]}"
-}
-
 installXray() {
     echo ""
     echo "正在安装Xray..."
@@ -180,139 +147,90 @@ config_nodes() {
     read -p "起始端口 (默认 $DEFAULT_START_PORT): " START_PORT
 	START_PORT=${START_PORT:-$DEFAULT_START_PORT}
 	
+    # 生成随机用户名和密码
+    USERNAME=$(openssl rand -hex 6)
+    PASSWORD=$(openssl rand -hex 12)
+	
     # 开始生成 JSON 配置
     cat > /usr/local/etc/xray/config.json <<EOF
 {
     "log": {
-        "loglevel": "debug"
+        "loglevel": "warning"
     },
     "inbounds": [
         {
-            "port": 1080,
+            "port": ${START_PORT},
             "protocol": "socks",
             "settings": {
-                "auth": "noauth",
+                "auth": "password",
+                "accounts": [
+                    {
+                        "user": "${USERNAME}",
+                        "pass": "${PASSWORD}"
+                    }
+                ],
                 "udp": true,
                 "ip": "127.0.0.1"
             },
-            "tag": "socks-inbound"
-        },
-        {
-            "port": 1081,
-            "protocol": "http",
-            "settings": {
-                "allowTransparent": false
-            },
-            "tag": "http-inbound"
+            "streamSettings": {
+                "network": "tcp"
+            }
         }
-EOF
-
-	# 循环遍历 IP 和端口
-	for ((i = 0; i < ${#IP_ADDRESSES[@]}; i++)); do
-		/usr/local/bin/xray uuid > /usr/local/etc/xray/uuid
-		USER_UUID[$i]=`cat /usr/local/etc/xray/uuid`
-		USER_NAME[$i]="SOCKS5(by小企鹅)_$i"	
-		/usr/local/bin/xray x25519 > /usr/local/etc/xray/key
-		PRIVATE_KEY[$i]=$(cat /usr/local/etc/xray/key | head -n 1 | awk '{print $3}')
-		PUBLIC_KEY[$i]=$(cat /usr/local/etc/xray/key | sed -n '2p' | awk '{print $3}')
-
-        PORT[$i]=$((START_PORT + i))
-		echo "正在开启${PORT[$i]}端口..."	
-		if [ -x "$(command -v firewall-cmd)" ]; then							  
-			firewall-cmd --permanent --add-port=${PORT[$i]}/tcp > /dev/null 2>&1
-			firewall-cmd --permanent --add-port=${PORT[$i]}/udp > /dev/null 2>&1
-			firewall-cmd --reload > /dev/null 2>&1
-			colorEcho $YELLOW "$PORT[$i]端口已成功开启"
-		elif [ -x "$(command -v ufw)" ]; then								  
-			ufw allow ${PORT[$i]}/tcp > /dev/null 2>&1
-			ufw allow ${PORT[$i]}/udp > /dev/null 2>&1
-			ufw reload > /dev/null 2>&1
-			colorEcho $YELLOW "${PORT[$i]}端口已成功开启"
-		else
-			echo "无法配置防火墙规则。请手动配置以确保新xray端口可用!"
-		fi
-
-		while true; do
-			domain=$(random_website)
-			check_num=$(echo QUIT | stdbuf -oL openssl s_client -connect "${domain}:443" -tls1_3 -alpn h2 2>&1 | grep -Eoi '(TLSv1.3)|(^ALPN\s+protocol:\s+h2$)|(X25519)' | sort -u | wc -l)
-			if [ "$check_num" -eq 3 ]; then
-				USER_SERVERNAME[$i]="$domain"
-				break
-			fi
-		done	
-		USER_DEST[$i]=${USER_SERVERNAME[i]}:443
-        USER_SID[$i]=$(openssl rand -hex 8)
-
-		echo "    ,{" >> /usr/local/etc/xray/config.json
-		echo "      \"port\": ${PORT[$i]}," >> /usr/local/etc/xray/config.json
-		echo "      \"protocol\": \"socks\"," >> /usr/local/etc/xray/config.json
-		echo "      \"settings\": {" >> /usr/local/etc/xray/config.json
-		echo "        \"auth\": \"password\"," >> /usr/local/etc/xray/config.json
-		echo "        \"accounts\": [" >> /usr/local/etc/xray/config.json	
-		echo "          {" >> /usr/local/etc/xray/config.json	
-		echo "            \"user\": \"${USER_UUID[$i]}\"," >> /usr/local/etc/xray/config.json
-		echo "            \"pass\": \"${USER_SID[$i]}\"" >> /usr/local/etc/xray/config.json
-		echo "          }" >> /usr/local/etc/xray/config.json	
-		echo "        ]," >> /usr/local/etc/xray/config.json	
-		echo "        \"udp\": true," >> /usr/local/etc/xray/config.json
-		echo "        \"ip\": \"${IP_ADDRESSES[$i]}\"" >> /usr/local/etc/xray/config.json
-		echo "       }," >> /usr/local/etc/xray/config.json
-		echo "      \"tag\": \"socks-proxy-$i\"" >> /usr/local/etc/xray/config.json
-		echo "    }" >> /usr/local/etc/xray/config.json
-    done
-	    
-    cat >> /usr/local/etc/xray/config.json <<EOF
     ],
     "outbounds": [
         {
             "protocol": "freedom",
             "tag": "direct"
-        },
-        {
-            "protocol": "blackhole",
-            "tag": "blocked"
         }
-    ],
-    "routing": {
-        "rules": [
-            {
-                "type": "field",
-                "ip": [
-                    "geoip:private"
-                ],
-                "outboundTag": "blocked"
-            }
-        ]
-    }
+    ]
 }
 EOF
-	
+    
+    # 开启端口
+    echo "正在开启${START_PORT}端口..."	
+    if [ -x "$(command -v firewall-cmd)" ]; then							  
+        firewall-cmd --permanent --add-port=${START_PORT}/tcp > /dev/null 2>&1
+        firewall-cmd --permanent --add-port=${START_PORT}/udp > /dev/null 2>&1
+        firewall-cmd --reload > /dev/null 2>&1
+        colorEcho $YELLOW "${START_PORT}端口已成功开启"
+    elif [ -x "$(command -v ufw)" ]; then								  
+        ufw allow ${START_PORT}/tcp > /dev/null 2>&1
+        ufw allow ${START_PORT}/udp > /dev/null 2>&1
+        ufw reload > /dev/null 2>&1
+        colorEcho $YELLOW "${START_PORT}端口已成功开启"
+    else
+        echo "无法配置防火墙规则。请手动配置以确保新xray端口可用!"
+    fi
+
     restart
-	generate_links
+    generate_link
 }
 
-generate_links() {
+generate_link() {
     > /root/link.txt
-    > /root/socks_links.txt
-    colorEcho $BLUE "${BLUE}SOCKS5订阅链接${PLAIN}："
+    colorEcho $BLUE "${BLUE}SOCKS5代理信息${PLAIN}："
     
-	for ((i = 0; i < ${#IP_ADDRESSES[@]}; i++)); do
-		if [[ "${IP_ADDRESSES[$i]}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-			SOCKS_LINK[$i]="socks5://${USER_UUID[$i]}:${USER_SID[$i]}@${IP_ADDRESSES[$i]}:${PORT[$i]}#${USER_NAME[$i]}"
-		elif [[ "${IP_ADDRESSES[$i]}" =~ ^([0-9a-fA-F:]+)$ ]]; then 
-			SOCKS_LINK[$i]="socks5://${USER_UUID[$i]}:${USER_SID[$i]}@[${IP_ADDRESSES[$i]}]:${PORT[$i]}#${USER_NAME[$i]}"
-		else
-			colorEcho $RED "没有获取到有效ip！"
-		fi
-		colorEcho $YELLOW ${SOCKS_LINK[$i]}
-		echo ${SOCKS_LINK[$i]} >> /root/socks_links.txt
-	done
-	
-	# 生成订阅链接
-	SUBSCRIPTION_LINK=$(echo -n "socks5://${IP_ADDRESSES[0]}:${PORT[0]},${USER_UUID[0]},${USER_SID[0]}" | base64 -w 0)
-	colorEcho $GREEN "SOCKS5订阅链接(base64编码):"
-	colorEcho $BLUE "http://${IP_ADDRESSES[0]}/socks5.txt#SOCKS5订阅"
-	echo "http://${IP_ADDRESSES[0]}/socks5.txt#SOCKS5订阅" >> /root/socks_links.txt
+    for ((i = 0; i < ${#IP_ADDRESSES[@]}; i++)); do
+        if [[ "${IP_ADDRESSES[$i]}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            LINK[$i]="socks5://${USERNAME}:${PASSWORD}@${IP_ADDRESSES[$i]}:${START_PORT}"
+        elif [[ "${IP_ADDRESSES[$i]}" =~ ^([0-9a-fA-F:]+)$ ]]; then 
+            LINK[$i]="socks5://${USERNAME}:${PASSWORD}@[${IP_ADDRESSES[$i]}]:${START_PORT}"
+        else
+            colorEcho $RED "没有获取到有效ip！"
+        fi
+        
+        colorEcho $YELLOW "服务器: ${IP_ADDRESSES[$i]}"
+        colorEcho $YELLOW "端口: ${START_PORT}"
+        colorEcho $YELLOW "用户名: ${USERNAME}"
+        colorEcho $YELLOW "密码: ${PASSWORD}"
+        colorEcho $YELLOW "连接URL: ${LINK[$i]}"
+        echo "服务器: ${IP_ADDRESSES[$i]}" >> /root/link.txt
+        echo "端口: ${START_PORT}" >> /root/link.txt
+        echo "用户名: ${USERNAME}" >> /root/link.txt
+        echo "密码: ${PASSWORD}" >> /root/link.txt
+        echo "连接URL: ${LINK[$i]}" >> /root/link.txt
+        echo "" >> /root/link.txt
+    done
 }	
 
 start() {
@@ -360,11 +278,7 @@ menu() {
 Xray() {
     clear
     echo "##################################################################"
-    echo -e "#                   ${RED}SOCKS5代理一键安装脚本${PLAIN}                                    #"
-    echo -e "# ${GREEN}作者${PLAIN}: 爱分享的小企鹅                                                     #"
-    echo -e "# ${GREEN}网址${PLAIN}: http://www.youtube.com/@aifenxiangdexiaoqie                       #"
-	echo -e "# ${GREEN}VPS选购攻略${PLAIN}：https://lovetoshare.top/archives/3.html                     #"
-	echo -e "# ${GREEN}年付10美金VPS推荐${PLAIN}：https://my.racknerd.com/aff.php?aff=9734&pid=838      #"	
+    echo -e "#                   ${RED}SOCKS5代理一键安装脚本${PLAIN}                                #"
     echo "##################################################################"
 
     echo -e "  ${GREEN}  <Xray内核版本>  ${YELLOW}"	
@@ -373,7 +287,7 @@ Xray() {
     echo -e "  ${GREEN}3.${RED}  卸载xray${PLAIN}"
     echo " -------------"	
     echo -e "  ${GREEN}4.${PLAIN}  搭建SOCKS5代理"
-    echo -e "  ${GREEN}5.${PLAIN}  查看SOCKS5链接"
+    echo -e "  ${GREEN}5.${PLAIN}  查看SOCKS5连接信息"
     echo " -------------"
     echo -e "  ${GREEN}6.${PLAIN}  启动xray"
     echo -e "  ${GREEN}7.${PLAIN}  重启xray"
@@ -407,7 +321,7 @@ Xray() {
             config_nodes
             ;;
         5)
-			cat /root/socks_links.txt 
+			cat /root/link.txt 
             ;;
         6)
             start
