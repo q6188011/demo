@@ -17,14 +17,14 @@ XraySocks5() {
     clear
     echo "正在安装Xray SOCKS5代理..."
     # 这里可以添加Xray SOCKS5的安装脚本
-    bash -c "$(curl -s -L https://raw.githubusercontent.com/yirenchengfeng1/linux/main/socks5_xray.sh)"
+    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/socks5_xray.sh)"
 }
 
 SingboxSocks5() {
     clear
     echo "正在安装Singbox SOCKS5代理..."
     # 这里可以添加Singbox SOCKS5的安装脚本
-    bash -c "$(curl -s -L https://raw.githubusercontent.com/yirenchengfeng1/linux/main/socks5_singbox.sh)"
+    bash -c "$(curl -s -L https://raw.githubusercontent.com/q6188011/demo/main/socks5_singbox.sh)"
 }
 
 
